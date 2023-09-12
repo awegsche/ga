@@ -36,7 +36,7 @@ namespace ga
 
         Derived const& derived() const
         {
-            return *static_cast<Derived*>(this);
+            return *static_cast<Derived const*>(this);
         }
 
         template <typename D>
