@@ -25,9 +25,6 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 add_executable(
-    t t.cpp)
-
-add_executable(
     max_integer
     tests/max_integer.cpp
     )
