@@ -7,6 +7,7 @@
 #include <iterator>
 #include <ostream>
 #include <random>
+#include <thread>
 #include <vector>
 
 using std::cin, std::cout, std::cerr, std::endl;
@@ -228,6 +229,32 @@ namespace ga
             {
                 simulator.simulate(genom);
             }
+            std::sort(genoms.rbegin(), genoms.rend());
+            generation++;
+        }
+
+        template <typename Simul>
+        void simulate_mt(Simul const& simulator)
+        {
+            auto simulate_chunk = [](Simul const& sim, std::vector<Genom<N, S>>& genoms_, size_t chunk_start, size_t chunk_size){
+                for (size_t i = chunk_start; i < chunk_start + chunk_size && i < genoms_.size(); i++)
+                {
+                    sim.simulate(genoms_[i]);
+                }
+            };
+
+            std::vector<std::thread> threads;
+
+
+            for (int thread_id = 0; thread_id < std::thread::hardware_concurrency(); thread_id++)
+            {
+                const auto chunk_size = n_genoms / std::thread::hardware_concurrency();
+                threads.emplace_back(simulate_chunk, std::ref(simulator), std::ref(genoms), thread_id * chunk_size, chunk_size);
+            }
+
+            for (auto& thread : threads)
+                thread.join();
+
             std::sort(genoms.rbegin(), genoms.rend());
             generation++;
         }
