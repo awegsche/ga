@@ -107,3 +107,27 @@ TEST(GetMaxInteger, BasicTest) {
     ASSERT_EQ(sim.get_value(pool.best()) , 6);
     ASSERT_EQ(pool.best().get_scorer().score , 10.0f);
 }
+
+TEST(GetMaxInteger, MultiThreadTest) {
+
+    std::cout << "test" << std::endl;
+
+    ga::GenePool<IntNucl, Scorer, std::default_random_engine> pool{10, 7, 0.3};
+    Simulator sim{{1, 2, 3, 4, 5, 6}};
+
+    pool.simulate_mt(sim);
+    std::cout << pool << std::endl;
+
+    for(int i = 0; i < 100; ++i){
+        pool.select();
+        pool.simulate_mt(sim);
+
+        if (pool.best().get_scorer().score == 10.0f)
+            break;
+
+        std::cout << pool << std::endl;
+    }
+
+    ASSERT_EQ(sim.get_value(pool.best()) , 6);
+    ASSERT_EQ(pool.best().get_scorer().score , 10.0f);
+}
