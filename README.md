@@ -41,8 +41,8 @@ class IntNucl : public ga::Nucl<IntNucl> {
             value_ += dist(rng);
         }
 
-        static auto crossover(const IntNucl& a, const IntNucl& b) -> IntNucl {
-            return IntNucl((a.value_ + b.value_)/2);
+        static void crossover_inplace(const IntNucl& a, const IntNucl& b, IntNucl* out) {
+            out->value_ = (a.value_ + b.value_)/2;
         }
 
         // ---- Accessors -------------------------------------------------------------------------

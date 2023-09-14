@@ -12,6 +12,7 @@ class IntNucl : public ga::Nucl<IntNucl> {
 
         // ---- Initialisation --------------------------------------------------------------------
         //
+        IntNucl() : value_(0) {}
         IntNucl(int32_t value) : value_(value) {}
 
         /// All nucleotides need a static random generation initialisation
@@ -27,8 +28,8 @@ class IntNucl : public ga::Nucl<IntNucl> {
             value_ += dist(rng);
         }
 
-        static auto crossover(const IntNucl& a, const IntNucl& b) -> IntNucl {
-            return IntNucl((a.value_ + b.value_)/2);
+        static void crossover_inplace(const IntNucl& a, const IntNucl& b, IntNucl* c) {
+            c->value_ = (a.value_ + b.value_)/2;
         }
 
         // ---- Accessors -------------------------------------------------------------------------
@@ -85,8 +86,13 @@ class Simulator {
 
 TEST(GetMaxInteger, BasicTest) {
 
+    std::cout << "test" << std::endl;
+
     ga::GenePool<IntNucl, Scorer, std::default_random_engine> pool{10, 7, 0.3};
     Simulator sim{{1, 2, 3, 4, 5, 6}};
+
+    pool.simulate(sim);
+    std::cout << pool << std::endl;
 
     for(int i = 0; i < 100; ++i){
         pool.select();
@@ -94,6 +100,8 @@ TEST(GetMaxInteger, BasicTest) {
 
         if (pool.best().get_scorer().score == 10.0f)
             break;
+
+        std::cout << pool << std::endl;
     }
 
     ASSERT_EQ(sim.get_value(pool.best()) , 6);

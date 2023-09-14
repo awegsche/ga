@@ -18,6 +18,7 @@ using std::vector;
 // -------------------------------------------------------------------------------------------------
 namespace ga
 {
+
     // CRTP
     template <typename Derived>
     class Nucl
@@ -29,9 +30,8 @@ namespace ga
             return Derived::random(rng);
         }
 
-        static auto crossover(Derived const& a, Derived const& b) -> Derived
-        {
-            return Derived::crossover(a, b);
+        static void crossover_inplace(Derived const& a, Derived const& b, Derived* c) {
+            return Derived::crossover_inplace(a, b, c);
         }
 
         Derived const& derived() const
@@ -87,28 +87,24 @@ namespace ga
 
         /**
          * @brief Crossover (a [genetic operator](https://en.wikipedia.org/wiki/Genetic_operator))
+         * Inplace version, avoids allocation
          * 
          *
          * @param a the first parent
          * @param b the second parent
          * @return the child genom after the crossover process
          */
-        static auto crossover(Genom const& a, Genom const& b, size_t n) -> Genom
+        static auto crossover_inplace(Genom const& a, Genom const& b, Genom* c, size_t n)
         {
-            Genom g;
-            g.nucleotides.reserve(a.nucleotides.size());
+            c->nucleotides.resize(a.nucleotides.size());
             for (auto i = 0; i < n; i++)
             {
-                g.nucleotides.push_back(
-                    Nucl<N>::crossover(a.nucleotides[i], b.nucleotides[i]));
+                Nucl<N>::crossover_inplace(a.nucleotides[i], b.nucleotides[i], &c->nucleotides[i]);
             }
             for (auto i = n; i < a.nucleotides.size(); i++)
             {
-                g.nucleotides.push_back(
-                    Nucl<N>::crossover(b.nucleotides[i], a.nucleotides[i]));
+                Nucl<N>::crossover_inplace(b.nucleotides[i], a.nucleotides[i], &c->nucleotides[i]);
             }
-
-            return g;
         }
 
         /**
@@ -183,6 +179,8 @@ namespace ga
          */
         auto get_scorer() const -> S const& { return scorer; }
 
+        auto get_scorer_mut() -> S& { return scorer; }
+
         /**
          * @brief Convenience function to retrieve the score of this genom
          * 
@@ -215,6 +213,12 @@ namespace ga
             genoms.reserve(n_genoms);
             for (int i = 0; i < n_genoms; i++)
                 genoms.push_back(Genom<N, S>::random(genom_len, rng));
+
+            shuffle_indices.reserve(n_genoms);
+            for (size_t i = 0; i < n_genoms; i++)
+                shuffle_indices.push_back(i);
+
+            next_generation.reserve(n_genoms);
         }
 
         template <typename Simul>
@@ -241,29 +245,32 @@ namespace ga
 
         auto select()
         {
-            vector<size_t> new_indices;
-            new_indices.reserve(n_genoms);
-            for (size_t i = 0; i < n_genoms; i++)
-                new_indices.push_back(i);
-            std::shuffle(new_indices.begin() + take, new_indices.end(), rng);
+            std::shuffle(shuffle_indices.begin() + take, shuffle_indices.end(), rng);
             auto half = n_genoms / 2;
             for (size_t i = 0; i < half; i++)
-                new_indices[i + half] = new_indices[i];
+                shuffle_indices[i + half] = shuffle_indices[i];
 
-            vector<Genom<N, S>> next_generation{};
-            next_generation.reserve(n_genoms);
+            next_generation.resize(n_genoms);
 
-            std::shuffle(new_indices.begin() + half, new_indices.end(), rng);
+            std::shuffle(shuffle_indices.begin() + half, shuffle_indices.end(), rng);
             for (size_t i = 0; i < half; i++)
-                next_generation.push_back(Genom<N, S>::crossover(genoms[new_indices[i]],
-                                                                 genoms[new_indices[i + half]],
-                                                                 distr(rng)));
+                Genom<N, S>::crossover_inplace(genoms[shuffle_indices[i]],
+                        genoms[shuffle_indices[i + half]],
+                        &next_generation[i],
+                        distr(rng));
+                //next_generation.push_back(Genom<N, S>::crossover(genoms[shuffle_indices[i]],
+                //                                                 genoms[shuffle_indices[i + half]],
+                //                                                 distr(rng)));
 
-            std::shuffle(new_indices.begin() + half, new_indices.end(), rng);
+            std::shuffle(shuffle_indices.begin() + half, shuffle_indices.end(), rng);
             for (size_t i = 0; i < half; i++)
-                next_generation.push_back(Genom<N, S>::crossover(genoms[new_indices[i]],
-                                                                 genoms[new_indices[i + half]],
-                                                                 distr(rng)));
+                Genom<N, S>::crossover_inplace(genoms[shuffle_indices[i]],
+                        genoms[shuffle_indices[i + half]],
+                        &next_generation[i+half],
+                        distr(rng));
+                //next_generation.push_back(Genom<N, S>::crossover(genoms[shuffle_indices[i]],
+                //                                                 genoms[shuffle_indices[i + half]],
+                //                                                 distr(rng)));
 
             for (auto& genom : next_generation)
                 genom.mutate(distr(rng), rng);
@@ -294,6 +301,10 @@ namespace ga
         R rng;
         std::uniform_int_distribution<size_t> distr;
         size_t generation;
+
+        // state (to avoid allocations)
+        vector<size_t> shuffle_indices;
+        vector<Genom<N, S>> next_generation;
     };
 
     //template<typename Derived, typename N, typename S>
